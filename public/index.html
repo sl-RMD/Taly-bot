@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="si">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bot Panel - Sinhala</title>
+  <style>
+    body{font-family: Arial, sans-serif; padding:16px}
+    h1{font-size:24px}
+    .bot{border:1px solid #ddd;padding:10px;margin:8px 0}
+    button{margin-right:6px}
+    label{display:block;margin-top:8px}
+    input, select{width:100%;padding:8px;margin-top:4px}
+  </style>
+</head>
+<body>
+  <h1>Bot Hosting Panel (සිංහල)</h1>
+  <div>
+    <h3>නව Bot එකතු කරන්න</h3>
+    <label>නම (unique)</label>
+    <input id="name" placeholder="mywhatsappbot" />
+    <label>වර්ගය</label>
+    <select id="type"><option value="whatsapp">WhatsApp</option><option value="telegram">Telegram</option><option value="custom">Custom</option></select>
+    <label>Bot folder path (Termux path)</label>
+    <input id="path" placeholder="/data/data/com.termux/files/home/bots/mybot" />
+    <label>Start command (e.g. node bot.js OR python3 bot.py)</label>
+    <input id="startCommand" placeholder="node bot.js" />
+    <button onclick="addBot()">එකතු කරන්න</button>
+  </div>
+
+  <hr />
+  <div>
+    <h3>Registered Bots</h3>
+    <div id="bots"></div>
+  </div>
+
+  <script>
+    async function refresh(){
+      const res = await fetch('/api/bots');
+      const bots = await res.json();
+      const el = document.getElementById('bots');
+      el.innerHTML = '';
+      for(const b of bots){
+        const div = document.createElement('div'); div.className='bot';
+        div.innerHTML = `<b>${b.name}</b> — ${b.type} — ${b.path} <br/>`;
+        const startBtn = document.createElement('button'); startBtn.textContent='Start'; startBtn.onclick = ()=> start(b.name);
+        const stopBtn = document.createElement('button'); stopBtn.textContent='Stop'; stopBtn.onclick = ()=> stop(b.name);
+        const logsBtn = document.createElement('button'); logsBtn.textContent='Logs'; logsBtn.onclick = ()=> showLogs(b.name);
+        const delBtn = document.createElement('button'); delBtn.textContent='Remove'; delBtn.onclick = ()=> removeBot(b.name);
+        div.appendChild(startBtn); div.appendChild(stopBtn); div.appendChild(logsBtn); div.appendChild(delBtn);
+        const status = document.createElement('div'); status.textContent = 'Running: ' + b.running; div.appendChild(status);
+        el.appendChild(div);
+      }
+    }
+    async function addBot(){
+      const name = document.getElementById('name').value.trim();
+      const type = document.getElementById('type').value;
+      const path = document.getElementById('path').value.trim();
+      const startCommand = document.getElementById('startCommand').value.trim();
+      if(!name||!path||!startCommand){ alert('name, path and startCommand අවශ්‍යයි'); return; }
+      const res = await fetch('/api/bots',{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name,type,path,startCommand})});
+      const data = await res.json();
+      if(data.error) alert('දෝෂය: '+data.error); else { alert('Bot එක ඇතුලත් විය'); refresh(); }
+    }
+    async function start(name){ await fetch(`/api/bots/${name}/start`,{method:'POST'}); setTimeout(refresh,500); }
+    async function stop(name){ await fetch(`/api/bots/${name}/stop`,{method:'POST'}); setTimeout(refresh,500); }
+    async function removeBot(name){ if(!confirm('ඔබට මේ bot එක ඉවත් කරන්න ඕනද?')) return; await fetch(`/api/bots/${name}`,{method:'DELETE'}); setTimeout(refresh,500); }
+    async function showLogs(name){ const res = await fetch(`/api/bots/${name}/logs`); const data = await res.json(); const w = window.open('','_blank'); w.document.write('<pre>'+escapeHtml(data.logs)+'</pre>'); }
+    function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    refresh();
+  </script>
+</body>
+</html>
